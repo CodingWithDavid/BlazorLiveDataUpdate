@@ -1,0 +1,62 @@
+﻿@page "/jobView"
+
+@using Microsoft.AspNetCore.SignalR.Client;
+@using RealtimeDataApp.Data;
+@using RealtimeDataApp.Services;
+@inject JobsService jobService;
+@inject NavigationManager Navigation
+
+<PageTitle>Jobs</PageTitle>
+
+<h1>Job View</h1>
+
+@if (jobsList == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Id</th>
+                <th>Name</th>
+                <th>Description</th>
+                <th>Dur Date</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var j in jobsList)
+            {
+                <tr>
+                    <td>@j.Id</td>
+                    <td>@j.Name</td>
+                    <td>@j.Description</td>
+                    <td>@j.DueDate.ToShortDateString()</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    List<Job> jobsList = new List<Job>();
+    private HubConnection? hubConnection;
+
+    protected override async Task OnInitializedAsync()
+    {
+        jobsList = await jobService.GetAllJobs();
+
+        hubConnection = new HubConnectionBuilder()
+            .WithUrl(Navigation.ToAbsoluteUri("/jobhub"))
+            .Build();
+
+        hubConnection.On<List<Job>>("RefreshJobs", jobs =>
+            {
+                jobsList = jobs;
+                InvokeAsync(StateHasChanged);
+            });
+
+        await hubConnection.StartAsync();
+    }
+}
